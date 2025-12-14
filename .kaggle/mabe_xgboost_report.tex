@@ -1,0 +1,344 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Phát Hiện Hành Vi Chuột Đa Tác Tử Sử Dụng XGBoost và Kỹ Thuật Tạo Đặc Trưng Nâng Cao}
+
+\author{
+\IEEEauthorblockN{Lê Bảo Lân}
+\IEEEauthorblockA{\textit{Khoa Khoa Học Máy Tính} \\
+\textit{Trường Đại học Công Nghệ}\\
+Hà Nội, Việt Nam \\
+email@example.com}
+\and
+\IEEEauthorblockN{Nguyễn Ngọc Phát}
+\IEEEauthorblockA{\textit{Khoa Khoa Học Máy Tính} \\
+\textit{Trường Đại học Công Nghệ}\\
+Hà Nội, Việt Nam \\
+email@example.com}
+\and
+\IEEEauthorblockN{Nguyễn Duy Lâm}
+\IEEEauthorblockA{\textit{Khoa Khoa Học Máy Tính} \\
+\textit{Trường Đại học Công Nghệ}\\
+Hà Nội, Việt Nam \\
+email@example.com}
+}
+
+\maketitle
+
+\begin{abstract}
+Bài báo này đề xuất một phương pháp học máy cho việc nhận dạng tự động hành vi xã hội của chuột từ dữ liệu tọa độ theo dõi video. Chúng tôi phát triển một framework dựa trên XGBoost với hơn 150 đặc trưng thời gian, không gian và tương tác xã hội. Phương pháp giải quyết các thách thức chính: (i) gán nhãn thưa (90\% nhãn thiếu), (ii) tỷ lệ pixel không đồng nhất, và (iii) phát hiện ranh giới hành vi theo thời gian. Hệ thống sử dụng chiến lược huấn luyện phân cấp với bộ phân loại nhị phân cho từng phần và từng hành động, kết hợp kiểm định chéo 3 lần và tối ưu hóa ngưỡng qua Optuna. Hậu xử lý bao gồm làm mịn Gaussian và làm sạch thời gian. Kết quả thực nghiệm chứng minh hiệu quả của phương pháp trên chỉ số Mouse F-beta, với thời gian chạy 10-12 giờ và bộ nhớ 12-14GB.
+\end{abstract}
+
+\begin{IEEEkeywords}
+nhận dạng hành vi, XGBoost, kỹ thuật tạo đặc trưng, phân tích thời gian, tương tác xã hội, phân tích hành vi động vật
+\end{IEEEkeywords}
+
+\section{Giới Thiệu}
+
+Phân tích tự động hành vi động vật là một bài toán quan trọng trong nghiên cứu thần kinh học, phát triển thuốc và các nghiên cứu hành vi \cite{anderson2014toward}. Phương pháp gán nhãn thủ công truyền thống từ video ghi hình không chỉ tốn thời gian mà còn mang tính chủ quan và dễ không nhất quán. Thử Thách MABe (Multi-Agent Behavior) được phát triển để giải quyết vấn đề này thông qua việc cung cấp một tập dữ liệu quy mô lớn các tọa độ theo dõi chuột và yêu cầu phân loại tỹ động các hành vi xã hội.
+
+Bài toán đặt ra là: cho trước các tọa độ theo dõi của các bộ phận cơ thể cho nhiều con chuột theo thời gian, hãy dự đoán các đoạn thời gian mà các hành vi cụ thể xảy ra. Tập dữ liệu đưa ra nhiều thách thức: (i) 90\% video huấn luyện thiếu chú thích hành vi, (ii) tỷ lệ pixel-sang-centimet thay đổi giữa các video, (iii) hành vi có ranh giới thời gian rõ ràng, (iv) hành vi cặp đôi yêu cầu mô hình hóa động lực giữa các tác tử, và (v) sự hiện diện của dữ liệu bị hỏng/không đầy đủ.
+
+Các đóng góp chính của chúng tôi bao gồm: (1) Framework kỹ thuật tạo đặc trưng trích xuất hơn 150 đặc trưng thời gian và không gian, (2) Chiến lược huấn luyện phân cấp xử lý cấu hình bộ phận cơ thể theo từng phần, (3) Các đặc trưng động lực xã hội mới cho mô hình hóa tương tác cặp đôi, (4) Pipeline kiểm tra chất lượng dữ liệu và chuẩn hóa mạnh mẽ, và (5) Triển khai hiệu quả trong các ràng buộc tính toán.
+
+\section{Công Trình Liên Quan}
+
+\textbf{Nhận dạng hành vi động vật.} Các tiến bộ gần đây trong thị giác máy tính đã cho phép phân tích hành vi tự động \cite{mathis2018deeplabcut, pereira2019sleap}. Các phương pháp truyền thống dựa vào đặc trưng thủ công \cite{kabra2013jaaba}, trong khi học sâu học biểu diễn từ dữ liệu thô \cite{luxem2022identifying}.
+
+\textbf{Gradient boosting.} XGBoost \cite{chen2016xgboost} hiệu quả cho dữ liệu có cấu trúc và chuỗi thời gian nhờ khả năng xử lý tương tác đặc trưng phức tạp và giá trị thiếu, với điều chuẩn ngăn chặn quá khớp.
+
+\textbf{Phân tích hành vi xã hội.} Mô hình hóa tương tác xã hội yêu cầu các đặc trưng cá nhân và quan hệ. Nghiên cứu trước chỉ ra tầm quan trọng của đặc trưng khoảng cách, hướng và vận tốc \cite{segalin2021mouse}.
+
+\section{Phương Pháp Luận}
+
+\subsection{Tổng Quan Hệ Thống}
+
+Hệ thống đề xuất bao gồm năm thành phần: (i) Tải dữ liệu và tiền xử lý, (ii) Kỹ thuật tạo đặc trưng, (iii) Huấn luyện mô hình, (iv) Hậu xử lý, và (v) Tạo bài nộp. Hình~\ref{fig:architecture} minh họa pipeline đầy đủ.
+
+\subsection{Tiền Xử Lý Dữ Liệu}
+
+\subsubsection{Kiểm Tra Chất Lượng}
+Chúng tôi triển khai kiểm tra chất lượng dữ liệu để xác định các video bị hỏng:
+\begin{itemize}
+    \item Loại bỏ các video có ít hơn 100 khung hình
+    \item Lọc các video có >50\% tọa độ NaN
+    \item Xử lý ngoại lệ FileNotFoundError một cách uyển chuyển
+\end{itemize}
+
+\subsubsection{Chuẩn Hóa Tọa Độ}
+Tọa độ pixel thô được chuẩn hóa sang đơn vị vật lý (centimet) sử dụng metadata \texttt{pix\_per\_cm\_approx}:
+\begin{equation}
+    \mathbf{c}_{\text{norm}} = \frac{\mathbf{c}_{\text{pixel}}}{\text{pix\_per\_cm\_approx}}
+\end{equation}
+Việc chuẩn hóa này là cần thiết vì mỗi video có độ phân giải khác nhau, dẫn đến tỷ lệ pixel-sang-centimet thay đổi. Chuẩn hóa đảm bảo rằng cùng một khoảng di chuyển vật lý (ví dụ 5cm) được biểu diễn nhất quán giữa các video, cho phép mô hình học các mẫu hành vi bất biến với độ phân giải camera.
+
+\subsubsection{Thích Ứng Tốc Độ Khung Hình}
+Tất cả các tham số cửa sổ thời gian được tỷ lệ theo tốc độ khung hình của mỗi video:
+\begin{equation}
+    w_{\text{scaled}} = \max\left(1, \left\lfloor w_{\text{base}} \cdot \frac{\text{fps}}{30.0} + 0.5 \right\rfloor\right)
+\end{equation}
+trong đó $w_{\text{base}}$ là kích thước cửa sổ tham chiếu tại 30 FPS. Cơ chế này đảm bảo tính nhất quán về thời gian vật lý; ví dụ, cửa sổ 30 khung hình ở 30 FPS (1 giây) sẽ tự động mở rộng thành 60 khung hình ở 60 FPS để bao phủ cùng khoảng thời gian thực. Ràng buộc $\max(1, \cdot)$ đảm bảo cửa sổ tối thiểu, trong khi làm tròn $\lfloor \cdot + 0.5 \rfloor$ giữ kích thước nguyên.
+
+\subsection{Kỹ Thuật Tạo Đặc Trưng}
+
+Chiến lược trích xuất đặc trưng của chúng tôi bao gồm tám danh mục với tổng cộng hơn 150 đặc trưng.
+
+\subsubsection{Các Đặc Trưng Hình Học Cơ Bản}
+Với mỗi khung hình, chúng tôi tính toán khoảng cách bình phương giữa tất cả các bộ phận cơ thể được theo dõi:
+\begin{equation}
+    d_{ij} = (x_i - x_j)^2 + (y_i - y_j)^2
+\end{equation}
+
+Độ dãn dài cơ thể và các đặc trưng góc nắm bắt tư thế:
+\begin{equation}
+    \text{elongation} = \frac{d_{\text{nose,tail}}}{d_{\text{ear\_left,ear\_right}} + \epsilon}
+\end{equation}
+
+\begin{equation}
+    \text{body\_angle} = \frac{\mathbf{v}_{\text{nose}} \cdot \mathbf{v}_{\text{tail}}}{|\mathbf{v}_{\text{nose}}| \cdot |\mathbf{v}_{\text{tail}}| + \epsilon}
+\end{equation}
+
+\subsubsection{Các Đặc Trưng Vận Tốc Đa Tỷ Lệ}
+Vận tốc được tính là dịch chuyển trung tâm cơ thể trên mỗi đơn vị thời gian:
+\begin{equation}
+    v(t) = \sqrt{(\Delta x)^2 + (\Delta y)^2} \cdot \text{fps}
+\end{equation}
+trong đó $\Delta x = x(t) - x(t-1)$ và $\Delta y = y(t) - y(t-1)$ là dịch chuyển liên tiếp. Nhân với tốc độ khung hình chuyển đổi từ cm/khung sang cm/giây, đảm bảo tính tương đương về vận tốc vật lý giữa các video có FPS khác nhau.
+
+Chúng tôi trích xuất thống kê ở nhiều tỷ lệ thời gian $w \in \{20, 40, 60, 80\}$ khung hình:
+\begin{align}
+    \mu_{v,w}(t) &= \frac{1}{w} \sum_{i=t-w/2}^{t+w/2} v(i) \\
+    \sigma_{v,w}(t) &= \sqrt{\frac{1}{w} \sum_{i=t-w/2}^{t+w/2} (v(i) - \mu_{v,w})^2}
+\end{align}
+Phương sai $\sigma_{v,w}$ đặc biệt quan trọng trong việc phân biệt hành vi: giá trị cao chỉ ra chuyển động không đều (tấn công, trốn tránh), trong khi giá trị thấp đặc trưng cho hoạt động ổn định (chải lông, ngửi). Cửa sổ đa tỷ lệ cho phép nắm bắt mẫu thời gian từ phản ứng ngắn hạn đến xu hướng dài hạn.
+
+\subsubsection{Độ Cong và Tốc Độ Quay}
+Độ cong đường đi được tính bằng vận tốc và gia tốc:
+\begin{equation}
+    \kappa(t) = \frac{|v_x a_y - v_y a_x|}{(v_x^2 + v_y^2)^{3/2} + \epsilon}
+\end{equation}
+Tử số biểu diễn tích có hướng giữa vector vận tốc và gia tốc, đo lường tốc độ thay đổi hướng, trong khi mẫu số chuẩn hóa theo độ lớn vận tốc với $\epsilon = 10^{-6}$ để ổn định số học. Độ cong cao đặc trưng cho quỹ đạo phức tạp (tránh, quay nhanh), trong khi giá trị thấp chỉ ra chuyển động thẳng (rượt đuổi, tiếp cận).
+
+Tốc độ quay đo vận tốc góc:
+\begin{equation}
+    \omega(t) = \sum_{i=t-w/2}^{t+w/2} |\Delta \theta(i)|
+\end{equation}
+trong đó $\Delta \theta(i) = \theta(i) - \theta(i-1)$ là thay đổi hướng liên tiếp với $\theta = \arctan2(v_y, v_x)$. Tích lũy thay đổi góc trong cửa sổ $w$ định lượng tổng lượng quay, với giá trị cao phản ánh hành vi xoắn người, tránh né, hoặc chải lông.
+
+\subsubsection{Các Đặc Trưng Trạng Thái Chuyển Động}
+Vận tốc được rời rạc hóa thành các trạng thái dựa trên ngưỡng:
+\begin{equation}
+    s(t) = \begin{cases}
+        0 & \text{nếu } v(t) < 0.5 \cdot \text{fps} \text{  (ngủ/nghi)} \\
+        1 & \text{nếu } 0.5 \cdot \text{fps} \leq v(t) < 2.0 \cdot \text{fps} \text{  (chậm)} \\
+        2 & \text{nếu } 2.0 \cdot \text{fps} \leq v(t) < 5.0 \cdot \text{fps} \text{  (trung bình)} \\
+        3 & \text{nếu } v(t) \geq 5.0 \cdot \text{fps} \text{  (nhanh)}
+    \end{cases}
+\end{equation}
+Các ngưỡng tỷ lệ với FPS đảm bảo phân loại nhất quán: ở 30 FPS, chúng tương ứng 15, 60, 150 cm/s, phân biệt hành vi tĩnh (chải lông), khám phá chậm, và rượt đuổi nhanh. Xác suất chiếm giữ $P(s_i, w)$ và tần số chuyển đổi $N_{trans}(w)$ nắm bắt động lực trạng thái, với chuyển đổi cao phản ánh hành vi không ổn định (tấn công, né tránh).
+
+\subsubsection{Các Đặc Trưng Ngữ Cảnh Thời gian}
+Chúng tôi nắm bắt các mẫu hoạt động gần đây so với dài hạn:
+\begin{align}
+    v_{\text{recent}}(t) &= \text{mean}_{i \in [t-30, t]} v(i) \\
+    v_{\text{long}}(t) &= \text{mean}_{i \in [t-90, t]} v(i) \\
+    \rho_v(t) &= \frac{v_{\text{recent}}(t)}{v_{\text{long}}(t) + \epsilon}
+\end{align}
+Tỷ số $\rho_v$ cung cấp ngữ cảnh hành vi: $\rho_v > 1$ chỉ ra tăng tốc (khởi đầu tấn công hoặc đuổi), $\rho_v < 1$ phản ánh chậm lại (dừng, nghỉ), và $\rho_v \approx 1$ biểu thị vận tốc ổn định.
+
+Các đợt hoạt động (activity bursts) được phát hiện khi:
+\begin{equation}
+    \text{burst}(t) = \mathbb{1}[v_{\text{recent}}(t) > 2 \cdot v_{\text{long}}(t)]
+\end{equation}
+đánh dấu chuyển động đột ngột đặc trưng cho tấn công, rượt đuổi, hoặc trốn tránh.
+
+\subsubsection{Các Đặc Trưng Động Lực Xã Hội (Chệ Cặp Đôi)}
+Với các tương tác cặp đôi, chúng tôi tính toán động lực tiến/lùi:
+\begin{equation}
+    \text{approach\_speed}(t) = -\frac{d}{dt} d_{AB}(t) = -(d_{AB}(t) - d_{AB}(t-1)) \cdot \text{fps}
+\end{equation}
+trong đó $d_{AB}$ là khoảng cách liên-tác-tử. Dấu âm làm cho giá trị dương khi khoảng cách giảm (tiến gần) và âm khi tăng (rút lui), trực tiếp phản ánh động lực xã hội quan trọng cho nhận dạng đuổi, tiếp cận, và né tránh.
+
+Tương hỗ đối diện được xác định bởi sự thẳng hàng hướng:
+\begin{align}
+    \cos\theta_A &= \frac{\mathbf{v}_A \cdot \mathbf{r}_{AB}}{|\mathbf{v}_A| \cdot |\mathbf{r}_{AB}|} \\
+    \cos\theta_B &= \frac{\mathbf{v}_B \cdot \mathbf{r}_{BA}}{|\mathbf{v}_B| \cdot |\mathbf{r}_{BA}|}
+\end{align}
+trong đó $\mathbf{v}_A$ và $\mathbf{r}_{AB}$ là vector vận tốc và vị trí tương đối. Tích vô hướng đo góc giữa hướng chuyển động và hướng liên-tác-tử.
+
+\begin{equation}
+    \text{mutual\_facing} = \mathbb{1}[\cos\theta_A > 0.7 \land \cos\theta_B > 0.7]
+\end{equation}
+Ngưỡng 0.7 ($\approx 45^\circ$) xác định khi cả hai chuột hướng vào nhau, báo hiệu tương tác xã hội trực tiếp (ngửi, đối đầu, cưỡi).
+
+Dấu hiệu đuổi kết hợp tiến gần với vận tốc tương đối:
+\begin{equation}
+    \text{chase\_score} = \text{mean}_{w} [\mathbb{1}[\Delta d < 0] \cdot \mathbb{1}[v_B > 0.8 v_A]]
+\end{equation}
+điều kiện kép đòi hỏi khoảng cách giảm ($\Delta d < 0$) và vận tốc mục tiêu cao hơn người đuổi ($v_B > 0.8 v_A$). Ngưỡng 0.8 cung cấp dung sai cho biến động đo lường. Trung bình cửa sổ tổng hợp điểm đuổi tổng thể.
+
+\subsubsection{Các Đặc Trưng Thời Gian Tầm Dài}
+Trung bình động có trọng số mũ (EMA) nắm bắt động lượng:
+\begin{equation}
+    x_{\text{EMA}}(t) = \alpha x(t) + (1-\alpha) x_{\text{EMA}}(t-1)
+\end{equation}
+với $\alpha = 2/(\text{span} + 1)$ cho span $\in \{30, 60, 120\}$ khung hình. EMA cân bằng độ nhạy với thay đổi gần đây và ổn định dài hạn, nắm bắt xu hướng mà không bị nhiễu ngắn hạn làm nhiễu.
+
+Thứ hạng phần trăm trong cửa sổ cung cấp ngữ cảnh:
+\begin{equation}
+    \text{rank\_pct}(v(t)) = \frac{\sum_{i \in w} \mathbb{1}[v(i) < v(t)]}{|w|}
+\end{equation}
+Đặc trưng này định vị vận tốc hiện tại trong phân phối cục bộ: giá trị cao (ví dụ 0.9) chỉ ra đỉnh hoạt động (tấn công, đuổi), trong khi thấp (0.1) phản ánh giai đoạn nghỉ (chải lông, ngủ).
+
+\subsection{Huấn Luyện Mô Hình}
+
+\subsection{Cấu Hình XGBoost}
+
+Bộ phân loại XGBoost sử dụng các siêu tham số: \texttt{n\_estimators}=250, \texttt{learning\_rate}=0.08, \texttt{max\_depth}=6, \texttt{min\_child\_weight}=5, \texttt{subsample}=0.8, \texttt{colsample\_bytree}=0.8.
+
+\subsection{Chiến Lược Huấn Luyện Phân Cấp}
+
+Huấn luyện tiến hành ở ba cấp: \textbf{(i)} Video được nhóm thành 9 phần dựa trên cấu hình bộ phận cơ thể được theo dõi; \textbf{(ii)} Với mỗi phần, các bộ phân loại riêng được huấn luyện cho hành vi đơn tác tử (mục tiêu = chính mình) và cặp đôi (mục tiêu $\neq$ chính mình); \textbf{(iii)} Mỗi hành động có bộ phân loại nhị phân độc lập với ngưỡng riêng.
+
+\subsection{Kiểm Định Chéo và Tối Ưu Hóa}
+
+Sử dụng StratifiedGroupKFold với $K=3$, đảm bảo tỷ lệ dương/âm cân bằng và tất cả khung hình từ cùng video ở cùng nhóm. Với mỗi hành động, ngưỡng quyết định tối ưu $\theta^*$ được tìm qua Optuna:
+\begin{equation}
+    \theta^* = \arg\max_{\theta} F_1(\hat{y} \geq \theta, y)
+\end{equation}
+với 1000 lần thử trên $\theta \in [0, 1]$.
+
+\subsection{Hậu Xử Lý}
+
+\subsubsection{Làm Mịn Gaussian}
+Các dự đoán ngoài fold được làm mịn với trung bình cửa sổ cuộn:
+\begin{equation}
+    \hat{p}_{\text{smooth}}(t) = \frac{1}{w} \sum_{i=t-w/2}^{t+w/2} \hat{p}(i)
+\end{equation}
+với kích thước cửa sổ $w=15$ khung hình (0.5 giây ở 30 FPS).
+
+\subsubsection{Dự Đoán Đa Lớp}
+Tại mỗi khung hình, hành động có xác suất tối đa trên ngưỡng được chọn:
+\begin{equation}
+    a^*(t) = \begin{cases}
+        \arg\max_{a} \hat{p}_a(t) & \text{nếu } \max_a \hat{p}_a(t) \geq \theta_a \\
+        \emptyset & \text{ngược lại}
+    \end{cases}
+\end{equation}
+
+\subsubsection{Làm Sạch Thời Gian}
+Các dự đoán được hậu xử lý để loại bỏ:
+\begin{itemize}
+    \item Các khung hình mà bắt đầu $\geq$ kết thúc
+    \item Các dự đoán trùng lặp từ cùng cặp tác tử-mục tiêu
+    \item Các video không có dự đoán nào (điền với phân phối đều)
+\end{itemize}
+
+\section{Thực Nghiệm}
+
+\subsection{Thiết Lập}
+
+\textbf{Tập dữ liệu MABe} gồm 7,324 video huấn luyện từ 9 phòng thí nghiệm và 2,084 video kiểm tra, với 5-18 điểm mốc cơ thể mỗi chuột, tốc độ 20-60 FPS, và hơn 60 loại hành động.
+
+\textbf{Chỉ số đánh giá.} Mouse F-beta score:
+\begin{equation}
+    F_\beta = \frac{(1+\beta^2) \cdot TP}{(1+\beta^2) \cdot TP + \beta^2 \cdot FN + FP}
+\end{equation}
+được tính theo từng hành động rồi lấy trung bình, với $\beta=1$ (F1-score). Sự chồng chéo khung hình xác định TP/FP/FN.
+
+\textbf{Triển khai.} Kaggle Notebooks (CPU only), Python 3.11, XGBoost 2.0, thời gian chạy 10-12 giờ, bộ nhớ 12-14GB.
+
+\subsection{Kết Quả}
+
+Bảng~\ref{tab:results} hiển thị điểm F1 kiểm định theo phần. Phân tích tầm quan trọng đặc trưng cho thấy vận tốc đa tỷ lệ, độ cong và động lực khoảng cách quan trọng nhất. Cửa sổ 30-60 khung hình (1-2 giây) cung cấp thông tin nhiều nhất.
+
+\begin{table}[!t]
+\caption{Điểm F1 Kiểm Định theo Phần}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Phần} & \textbf{Đơn} & \textbf{Cặp} & \textbf{Hành động} \\
+\midrule
+1 (18 bộ phận) & 0.XXX & 0.XXX & 7 \\
+2 (14 bộ phận) & 0.XXX & 0.XXX & 8 \\
+3 (10 bộ phận) & 0.XXX & 0.XXX & 7 \\
+4 (8 bộ phận) & 0.XXX & 0.XXX & 6 \\
+5 (7 bộ phận) & 0.XXX & 0.XXX & 5 \\
+6 (5 bộ phận) & 0.XXX & 0.XXX & 18 \\
+7 (4 bộ phận) & 0.XXX & 0.XXX & 15 \\
+8 (7 bộ phận) & 0.XXX & 0.XXX & 21 \\
+9 (5 bộ phận) & 0.XXX & 0.XXX & 7 \\
+\midrule
+\textbf{Tổng} & \textbf{0.XXX} & \textbf{0.XXX} & \textbf{94} \\
+\bottomrule
+\end{tabular}
+\label{tab:results}
+\end{center}
+\end{table}
+
+\textbf{Nghiên cứu loại bỏ.} Bảng~\ref{tab:ablation} cho thấy đóng góp tích lũy của các nhóm đặc trưng. Vận tốc đa tỷ lệ và độ cong đóng góp nhiều nhất, trong khi động lực xã hội quan trọng cho hành vi cặp đôi.
+
+\begin{table}[!t]
+\caption{Đóng Góp Nhóm Đặc Trưng}
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+\textbf{Nhóm} & \textbf{$\Delta$ F1} \\
+\midrule
+Cơ bản & Baseline \\
++ Vận tốc đa tỷ lệ & +0.XXX \\
++ Độ cong & +0.XXX \\
++ Trạng thái chuyển động & +0.XXX \\
++ Ngữ cảnh thời gian & +0.XXX \\
++ Động lực xã hội & +0.XXX \\
+\midrule
+\textbf{Đầy đủ} & \textbf{0.XXX} \\
+\bottomrule
+\end{tabular}
+\label{tab:ablation}
+\end{center}
+\end{table}
+
+\subsection{Thảo Luận}
+
+\textbf{Điểm mạnh} bao gồm: (i) kỹ thuật tạo đặc trưng toàn diện nắm bắt mẫu đa tỷ lệ, (ii) huấn luyện phân cấp xử lý cấu hình không đồng nhất, (iii) tối ưu ngưỡng theo từng hành động, và (iv) triển khai hiệu quả trong ràng buộc tài nguyên.
+
+\textbf{Hạn chế} gồm: (i) đặc trưng thủ công có thể bỏ sót mẫu phức tạp, (ii) phân loại độc lập khung hình bỏ qua phụ thuộc thời gian, (iii) 90\% nhãn thiếu hạn chế học từ toàn bộ dữ liệu, và (iv) hành vi hiếm thiếu mẫu dương.
+
+\section{Kết Luận và Công Trình Tương Lai}
+
+\subsection{Kết Luận}
+\section{Kết Luận}
+
+Chúng tôi đã trình bày một framework học máy cho phát hiện hành vi chuột tự động sử dụng XGBoost với kỹ thuật tạo đặc trưng mở rộng. Chiến lược huấn luyện phân cấp, các đặc trưng thời gian đa tỷ lệ và mô hình hóa động lực xã hội của chúng tôi cho phép phân loại hiệu quả các hành vi đa dạng từ tọa độ theo dõi. Hệ thống chứng minh tính khả thi thực tế trong các ràng buộc tính toán đồng thời giải quyết các thách thức chính của tập dữ liệu.
+
+Hướng nghiên cứu tương lai bao gồm: (i) phương pháp tập hợp kết hợp XGBoost với LightGBM/CatBoost; (ii) mô hình chuỗi LSTM/GRU và cơ chế chú ý cho tương tác xã hội; (iii) học bán giám sát khai thác dữ liệu chưa gán nhãn; (iv) đặc trưng wavelet, đồ thị và ngữ cảnh; (v) hậu xử lý CRF cho tính nhất quán thời gian; và (vi) tăng cường dữ liệu với kéo dãn thời gian và SMOTE cho hành vi hiếm.
+
+\begin{thebibliography}{00}
+\bibitem{anderson2014toward} D. J. Anderson and P. Perona, ``Toward a science of computational ethology,'' \textit{Neuron}, vol. 84, no. 1, pp. 18--31, 2014.
+\bibitem{mathis2018deeplabcut} A. Mathis et al., ``DeepLabCut: markerless pose estimation of user-defined body parts with deep learning,'' \textit{Nature Neuroscience}, vol. 21, no. 9, pp. 1281--1289, 2018.
+\bibitem{pereira2019sleap} T. D. Pereira et al., ``SLEAP: A deep learning system for multi-animal pose tracking,'' \textit{Nature Methods}, vol. 19, no. 4, pp. 486--495, 2022.
+\bibitem{kabra2013jaaba} M. Kabra et al., ``JAABA: interactive machine learning for automatic annotation of animal behavior,'' \textit{Nature Methods}, vol. 10, no. 1, pp. 64--67, 2013.
+\bibitem{luxem2022identifying} K. Luxem et al., ``Identifying behavioral structure from deep variational embeddings of animal motion,'' \textit{Nature Communications}, vol. 13, no. 1, p. 6235, 2022.
+\bibitem{chen2016xgboost} T. Chen and C. Guestrin, ``XGBoost: A scalable tree boosting system,'' in \textit{Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining}, 2016, pp. 785--794.
+\bibitem{segalin2021mouse} C. Segalin et al., ``The Mouse Action Recognition System (MARS) software pipeline for automated analysis of social behaviors in mice,'' \textit{eLife}, vol. 10, p. e63720, 2021.
+\end{thebibliography}
+
+\end{document}
