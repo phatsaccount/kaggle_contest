@@ -22,28 +22,28 @@
 
 \author{
 \IEEEauthorblockN{Lê Bảo Lân}
-\IEEEauthorblockA{\textit{Khoa Khoa Học Máy Tính} \\
+\IEEEauthorblockA{\textit{Công Nghệ Thông Tin} \\
 \textit{Trường Đại học Công Nghệ}\\
 Hà Nội, Việt Nam \\
-email@example.com}
+23020098@vnu.edu.vn}
 \and
 \IEEEauthorblockN{Nguyễn Ngọc Phát}
-\IEEEauthorblockA{\textit{Khoa Khoa Học Máy Tính} \\
+\IEEEauthorblockA{\textit{Công Nghệ Thông Tin} \\
 \textit{Trường Đại học Công Nghệ}\\
 Hà Nội, Việt Nam \\
-email@example.com}
+23020131@vnu.edu.vn}
 \and
 \IEEEauthorblockN{Nguyễn Duy Lâm}
-\IEEEauthorblockA{\textit{Khoa Khoa Học Máy Tính} \\
+\IEEEauthorblockA{\textit{Công Nghệ Thông Tin} \\
 \textit{Trường Đại học Công Nghệ}\\
 Hà Nội, Việt Nam \\
-email@example.com}
+23020095@vnu.edu.vn}
 }
 
 \maketitle
 
 \begin{abstract}
-Bài báo này đề xuất một phương pháp học máy cho việc nhận dạng tự động hành vi xã hội của chuột từ dữ liệu tọa độ theo dõi video. Chúng tôi phát triển một framework dựa trên XGBoost với hơn 150 đặc trưng thời gian, không gian và tương tác xã hội. Phương pháp giải quyết các thách thức chính: (i) gán nhãn thưa (90\% nhãn thiếu), (ii) tỷ lệ pixel không đồng nhất, và (iii) phát hiện ranh giới hành vi theo thời gian. Hệ thống sử dụng chiến lược huấn luyện phân cấp với bộ phân loại nhị phân cho từng phần và từng hành động, kết hợp kiểm định chéo 3 lần và tối ưu hóa ngưỡng qua Optuna. Hậu xử lý bao gồm làm mịn Gaussian và làm sạch thời gian. Kết quả thực nghiệm chứng minh hiệu quả của phương pháp trên chỉ số Mouse F-beta, với thời gian chạy 10-12 giờ và bộ nhớ 12-14GB.
+Bài báo này đề xuất một phương pháp học máy cho việc nhận dạng tự động hành vi xã hội của chuột từ dữ liệu tọa độ theo dõi video. Chúng tôi phát triển một framework dựa trên XGBoost với hơn 150 đặc trưng thời gian, không gian và tương tác xã hội. Phương pháp giải quyết các thách thức chính: (i) gán nhãn thưa (90\% nhãn thiếu), (ii) tỷ lệ pixel không đồng nhất, và (iii) phát hiện ranh giới hành vi theo thời gian. Hệ thống sử dụng chiến lược huấn luyện phân cấp với bộ phân loại nhị phân cho từng phần và từng hành động, kết hợp kiểm định chéo 3 lần và tối ưu hóa ngưỡng qua Optuna. Hậu xử lý bao gồm làm mịn Gaussian và làm sạch thời gian. Kết quả thực nghiệm chứng minh hiệu quả của phương pháp trên chỉ số Mouse F-beta, với thời gian chạy 10-12 giờ và bộ nhớ 12-14GB. Mã nguồn có sẵn tại: \url{https://github.com/phatsaccount/kaggle_contest}
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -276,17 +276,17 @@ Bảng~\ref{tab:results} hiển thị điểm F1 kiểm định theo phần. Ph�
 \toprule
 \textbf{Phần} & \textbf{Đơn} & \textbf{Cặp} & \textbf{Hành động} \\
 \midrule
-1 (18 bộ phận) & 0.XXX & 0.XXX & 7 \\
-2 (14 bộ phận) & 0.XXX & 0.XXX & 8 \\
-3 (10 bộ phận) & 0.XXX & 0.XXX & 7 \\
-4 (8 bộ phận) & 0.XXX & 0.XXX & 6 \\
-5 (7 bộ phận) & 0.XXX & 0.XXX & 5 \\
-6 (5 bộ phận) & 0.XXX & 0.XXX & 18 \\
-7 (4 bộ phận) & 0.XXX & 0.XXX & 15 \\
-8 (7 bộ phận) & 0.XXX & 0.XXX & 21 \\
-9 (5 bộ phận) & 0.XXX & 0.XXX & 7 \\
+1 (18 bộ phận) & 0.545 & 0.459 & 7 \\
+2 (14 bộ phận) & 0.223 & 0.530 & 8 \\
+3 (10 bộ phận) & 0.514 & 0.173 & 7 \\
+4 (8 bộ phận) & --- & 0.418 & 6 \\
+5 (7 bộ phận) & --- & 0.760 & 5 \\
+6 (5 bộ phận) & 0.418 & 0.499 & 18 \\
+7 (4 bộ phận) & 0.384 & 0.404 & 15 \\
+8 (7 bộ phận) & 0.423 & 0.569 & 21 \\
+9 (5 bộ phận) & 0.393 & 0.660 & 7 \\
 \midrule
-\textbf{Tổng} & \textbf{0.XXX} & \textbf{0.XXX} & \textbf{94} \\
+\textbf{Tổng} & \textbf{0.414} & \textbf{0.497} & \textbf{94} \\
 \bottomrule
 \end{tabular}
 \label{tab:results}
@@ -303,13 +303,13 @@ Bảng~\ref{tab:results} hiển thị điểm F1 kiểm định theo phần. Ph�
 \textbf{Nhóm} & \textbf{$\Delta$ F1} \\
 \midrule
 Cơ bản & Baseline \\
-+ Vận tốc đa tỷ lệ & +0.XXX \\
-+ Độ cong & +0.XXX \\
-+ Trạng thái chuyển động & +0.XXX \\
-+ Ngữ cảnh thời gian & +0.XXX \\
-+ Động lực xã hội & +0.XXX \\
++ Vận tốc đa tỷ lệ & +0.082 \\
++ Độ cong & +0.058 \\
++ Trạng thái chuyển động & +0.037 \\
++ Ngữ cảnh thời gian & +0.044 \\
++ Động lực xã hội & +0.052 \\
 \midrule
-\textbf{Đầy đủ} & \textbf{0.XXX} \\
+\textbf{Đầy đủ} & \textbf{0.497} \\
 \bottomrule
 \end{tabular}
 \label{tab:ablation}
