@@ -76,7 +76,7 @@ Hệ thống đề xuất bao gồm năm thành phần: (i) Tải dữ liệu v�
 \begin{figure}[htbp]
     \centering
     % LƯU Ý: Hãy đổi tên file ảnh của bạn thành pipeline.jpg và để cùng thư mục
-    \includegraphics[width=0.95\linewidth]{pipeline.jpg}
+    \includegraphics[width=0.95\linewidth]{ML_img.png}
     \caption{Sơ đồ luồng xử lý (Pipeline) của hệ thống đề xuất.}
     \label{fig:architecture}
 \end{figure}
@@ -332,16 +332,29 @@ Cơ bản & Baseline \\
 
 \textbf{Hạn chế} gồm: (i) đặc trưng thủ công có thể bỏ sót mẫu phức tạp, (ii) phân loại độc lập khung hình bỏ qua phụ thuộc thời gian, (iii) 90\% nhãn thiếu hạn chế học từ toàn bộ dữ liệu, và (iv) hành vi hiếm thiếu mẫu dương.
 
-\section{Kết Luận và Công Trình Tương Lai}
+\section{Kết Luận}
+\subsection{Kết Luận }
 
-\subsection{Kết Luận}
+Trong nghiên cứu này, chúng tôi đã xây dựng và đánh giá thành công một framework học máy toàn diện để nhận dạng tự động hành vi xã hội của chuột, giải quyết hiệu quả các thách thức của bộ dữ liệu MABe quy mô lớn. Giải pháp của chúng tôi dựa trên cốt lõi là thuật toán XGBoost kết hợp với kỹ thuật tạo đặc trưng (feature engineering) chuyên sâu, trích xuất hơn 150 đặc trưng bao gồm hình học, vận tốc đa tỷ lệ và ngữ cảnh thời gian.
 
-Chúng tôi đã trình bày một framework học máy cho phát hiện hành vi chuột tự động sử dụng XGBoost với kỹ thuật tạo đặc trưng mở rộng. Chiến lược huấn luyện phân cấp, các đặc trưng thời gian đa tỷ lệ và mô hình hóa động lực xã hội của chúng tôi cho phép phân loại hiệu quả các hành vi đa dạng từ tọa độ theo dõi. Hệ thống chứng minh tính khả thi thực tế trong các ràng buộc tính toán đồng thời giải quyết các thách thức chính của tập dữ liệu.
+Đóng góp quan trọng nhất của hệ thống là chiến lược huấn luyện phân cấp (hierarchical training), chia dữ liệu thành 9 phần dựa trên cấu hình bộ phận cơ thể. Cách tiếp cận này cho phép mô hình xử lý linh hoạt tình trạng thiếu hụt dữ liệu (missing keypoints) và sự không đồng nhất về điểm mốc giữa các video, đồng thời tối ưu hóa riêng biệt cho các hành vi đơn lẻ và hành vi cặp đôi. Bên cạnh đó, các đặc trưng về động lực xã hội và việc chuẩn hóa tọa độ sang đơn vị vật lý (cm) đã giúp mô hình vượt qua rào cản về sự thay đổi tỷ lệ pixel giữa các phòng thí nghiệm khác nhau. 
 
-Hướng nghiên cứu tương lai bao gồm: (i) phương pháp tập hợp kết hợp XGBoost với LightGBM/CatBoost; (ii) mô hình chuỗi LSTM/GRU và cơ chế chú ý cho tương tác xã hội; (iii) học bán giám sát khai thác dữ liệu chưa gán nhãn; (iv) đặc trưng wavelet, đồ thị và ngữ cảnh; (v) hậu xử lý CRF cho tính nhất quán thời gian; và (vi) tăng cường dữ liệu với kéo dãn thời gian và SMOTE cho hành vi hiếm.
+Kết quả thực nghiệm khẳng định rằng việc kết hợp các đặc trưng thủ công chất lượng cao với bộ phân loại cây quyết định (Gradient Boosting) có thể đạt hiệu suất tốt mà không cần tài nguyên tính toán quá lớn như các mô hình học sâu phức tạp. Hệ thống vận hành hiệu quả hoàn toàn trên CPU với thời gian huấn luyện từ 10-12 giờ và bộ nhớ 12-14GB, chứng minh tính khả thi cao trong việc triển khai thực tế. Cuối cùng, quy trình hậu xử lý bao gồm làm mịn Gaussian và tối ưu hóa ngưỡng qua Optuna đã đóng vai trò then chốt trong việc nâng cao độ chính xác (F1-score) và đảm bảo tính nhất quán về mặt thời gian của các hành vi dự đoán. 
 
+\subsection{Công trình tương lai }
+Mặc dù hệ thống hiện tại đã đạt được kết quả khả quan, vẫn còn nhiều dư địa để cải thiện hiệu suất, đặc biệt là trong việc xử lý các chuỗi thời gian phức tạp và dữ liệu mất cân bằng. Dựa trên các hạn chế đã nhận diện, chúng tôi đề xuất các hướng phát triển tiếp theo như sau: 
+
+Mô hình hóa chuỗi thời gian với Deep Learning: Mô hình XGBoost hiện tại xử lý từng khung hình khá độc lập và phụ thuộc vào các đặc trưng cửa sổ trượt thủ công. Để nắm bắt tốt hơn các phụ thuộc dài hạn (long-term dependencies) mà các cửa sổ cố định có thể bỏ lỡ, chúng tôi dự kiến tích hợp các kiến trúc mạng nơ-ron hồi quy như LSTM (Long Short-Term Memory) hoặc GRU (Gated Recurrent Units). Đặc biệt, cơ chế Attention (Chú ý) sẽ được áp dụng để giúp mô hình tự động tập trung vào các đoạn tương tác xã hội quan trọng thay vì xử lý dàn trải toàn bộ chuỗi thời gian. 
+
+Phương pháp Tập hợp (Ensemble Learning) nâng cao: Để giảm thiểu phương sai và tăng độ ổn định của dự đoán, chúng tôi sẽ mở rộng chiến lược mô hình đơn lẻ sang phương pháp tập hợp (Ensembling). Cụ thể, việc kết hợp kết quả dự đoán từ XGBoost với các mô hình Gradient Boosting khác như LightGBM (tối ưu tốc độ) và CatBoost (xử lý tốt đặc trưng phân loại) hứa hẹn sẽ cải thiện đáng kể điểm số F1 tổng thể. 
+
+Khai thác dữ liệu chưa gán nhãn (Semi-supervised Learning): Hiện tại, 90\% dữ liệu trong tập huấn luyện bị thiếu nhãn hành vi, gây lãng phí thông tin lớn. Trong tương lai, chúng tôi sẽ áp dụng các kỹ thuật học bán giám sát (Semi-supervised learning) để tận dụng lượng dữ liệu khổng lồ này, cho phép mô hình học được các biểu diễn đặc trưng mạnh mẽ hơn về chuyển động của chuột mà không cần phụ thuộc hoàn toàn vào nhãn thủ công. 
+
+Tăng cường dữ liệu cho hành vi hiếm: Một số hành vi xã hội quan trọng xuất hiện rất ít trong tập dữ liệu, dẫn đến hiện tượng mất cân bằng lớp nghiêm trọng. Chúng tôi đề xuất sử dụng các kỹ thuật tăng cường dữ liệu (Data Augmentation) chuyên biệt cho chuỗi thời gian như kéo dãn thời gian (time stretching) hoặc phương pháp SMOTE để sinh thêm các mẫu giả lập cho các hành vi hiếm, giúp mô hình học cân bằng hơn. 
+
+Nâng cao tính nhất quán thời gian và Đặc trưng: Thay vì chỉ làm mịn Gaussian đơn giản, chúng tôi sẽ nghiên cứu áp dụng Conditional Random Fields (CRF) ở bước hậu xử lý để mô hình hóa xác suất chuyển đổi giữa các trạng thái hành vi, đảm bảo chuỗi hành vi dự đoán tuân theo logic thực tế. Ngoài ra, việc bổ sung các đặc trưng nâng cao như biến đổi Wavelet (phân tích tần số-thời gian) và đặc trưng đồ thị (Graph features) sẽ giúp mô tả tốt hơn cấu trúc tương tác giữa các tác tử. 
 % --- PHỤ LỤC: THUẬT NGỮ ---
-\section*{Phụ Lục A \\ Giải Thích Thuật Ngữ Chuyên Ngành}
+\section*{Phụ Lục A \\ Giải Thích Thuật Ngữ Chuyên Ngành} 
 \begin{itemize}
     \item \textbf{XGBoost (eXtreme Gradient Boosting):} Một thuật toán học máy dựa trên cây quyết định (decision tree) sử dụng kỹ thuật tăng cường độ dốc (gradient boosting), được tối ưu hóa về tốc độ và hiệu năng.
     \item \textbf{Optuna:} Một framework phần mềm tự động hóa việc tối ưu hóa siêu tham số (hyperparameter tuning), sử dụng thuật toán lấy mẫu hiệu quả để tìm ra cấu hình tốt nhất cho mô hình học máy.
